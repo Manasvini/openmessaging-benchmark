@@ -33,4 +33,8 @@ public class CumulativeLatencies {
     @JsonIgnore
     public Histogram endToEndLatency = new Histogram(TimeUnit.HOURS.toMicros(12), 5);
     public byte[] endToEndLatencyBytes;
+
+    @JsonIgnore
+    public Histogram subscriptionChangeLatency = new Histogram(TimeUnit.SECONDS.toMicros(60), 5);
+    public byte[] subscriptionChangeLatencyBytes;
 }

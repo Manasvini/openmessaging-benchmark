@@ -54,6 +54,11 @@ public class KafkaBenchmarkProducer implements BenchmarkProducer {
     }
 
     @Override
+    public String getTopic() {
+        return null;
+    }
+
+    @Override
     public void close() throws Exception {
         producer.close();
     }

@@ -45,6 +45,7 @@ public class PulsarBenchmarkConsumer implements BenchmarkConsumer {
     
     
     public void unsubscribe() throws Exception{
+        consumer.closeAsync();
     }
     public String getTopic(){
         return consumer.getTopic();

@@ -37,6 +37,8 @@ public interface Worker extends AutoCloseable {
 
     void createProducers(List<String> topics) throws IOException;
 
+    void createProducers(String topic, String producerID, byte[] payloadData) throws IOException;
+
     void createConsumers(ConsumerAssignment consumerAssignment) throws IOException;
 
     void changeConsumerSubscriptions(ConsumerAssignment consumerAssignment) throws IOException;
@@ -50,6 +52,8 @@ public interface Worker extends AutoCloseable {
     void pauseConsumers() throws IOException;
 
     void resumeConsumers() throws IOException;
+
+    void setPublishRate(int publishRate);
 
     CountersStats getCountersStats() throws IOException;
 

@@ -39,7 +39,9 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
 import io.openmessaging.benchmark.worker.DistributedWorkersEnsemble;
+import io.openmessaging.benchmark.worker.ApplicationWorker;
 import io.openmessaging.benchmark.worker.LocalWorker;
+import io.openmessaging.benchmark.worker.LocalWorkerWithLocations;
 import io.openmessaging.benchmark.worker.Worker;
 
 public class Benchmark {
@@ -68,6 +70,12 @@ public class Benchmark {
 
         @Parameter(description = "Workloads", required = true)
         public List<String> workloads;
+
+        @Parameter(names = {"-l", "--locations"}, description = "Trajectory/location change file")
+        public String locations;
+
+        @Parameter(names = {"-o", "--outputDir"}, description = "Output file directory")
+        public String outputDir;
     }
 
     public static void main(String[] args) throws Exception {
@@ -105,6 +113,7 @@ public class Benchmark {
             log.info("Reading workers list from {}", arguments.workersFile);
             arguments.workers = mapper.readValue(arguments.workersFile, Workers.class).workers;
         }
+
         // Dump configuration variables
         log.info("Starting benchmark with config: {}", writer.writeValueAsString(arguments));
 
@@ -132,6 +141,8 @@ public class Benchmark {
 
         if (arguments.workers != null && !arguments.workers.isEmpty()) {
             worker = new DistributedWorkersEnsemble(arguments.workers);
+        } else if (arguments.locations != null) {
+            worker = new LocalWorkerWithLocations();
         } else {
             // Use local worker implementation
             worker = new LocalWorker();
@@ -151,24 +162,28 @@ public class Benchmark {
 
                     worker.initializeDriver(new File(driverConfig));
 
-                    WorkloadGenerator generator = new WorkloadGenerator(driverConfiguration.name, workload, worker);
+                    WorkloadGeneratorInterface generator;
+                    if (arguments.locations != null) {
+                        generator = new WorkloadGeneratorWithLocations(driverConfiguration.name,
+                            workload, worker, arguments.locations);
+                    } else {
+                        generator = new WorkloadGenerator(driverConfiguration.name,
+                            workload, worker);
+                    }
 
-                    TestResult result = generator.run();
+                    List<TestResult> result = generator.run();
 
-                    String fileName = String.format("%s-%s-%s.json", workloadName, driverConfiguration.name,
-                            dateFormat.format(new Date()));
+                    String fileName = String.format("%s/C-%s-%s-%s-%s.json", arguments.outputDir,
+                        workload.numClients, workloadName, driverConfiguration.name,
+                        dateFormat.format(new Date()));
 
                     log.info("Writing test result into {}", fileName);
                     writer.writeValue(new File(fileName), result);
 
                     generator.close();
                 } catch (Exception e) {
-                    log.error("Failed to run the workload '{}' for driver '{}'", workload.name, driverConfig, e);
-                } finally {
-                    try {
-                        worker.stopAll();
-                    } catch (IOException e) {
-                    }
+                    log.error("Failed to run the workload '{}' for driver '{}'",
+                        workload.name, driverConfig, e);
                 }
             });
         });

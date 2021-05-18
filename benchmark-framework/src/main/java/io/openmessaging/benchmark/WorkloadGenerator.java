@@ -49,7 +49,7 @@ import io.openmessaging.benchmark.worker.commands.ProducerWorkAssignment;
 import io.openmessaging.benchmark.worker.commands.TopicSubscription;
 import io.openmessaging.benchmark.worker.commands.TopicsInfo;
 
-public class WorkloadGenerator implements AutoCloseable {
+public class WorkloadGenerator implements WorkloadGeneratorInterface {
 
     private final String driverName;
     private final Workload workload;
@@ -79,7 +79,7 @@ public class WorkloadGenerator implements AutoCloseable {
         }
     }
 
-    public TestResult run() throws Exception {
+    public List<TestResult> run() throws Exception {
         Timer timer = new Timer();
         List<String> topics;
   
@@ -141,7 +141,7 @@ public class WorkloadGenerator implements AutoCloseable {
         worker.resetStats();
         log.info("----- Starting benchmark traffic ------");
 
-        TestResult result = printAndCollectStats(workload.testDurationMinutes, TimeUnit.MINUTES);
+        List<TestResult> result = printAndCollectStats(workload.testDurationMinutes, TimeUnit.MINUTES);
         runCompleted = true;
 
         worker.stopAll();
@@ -298,7 +298,7 @@ public class WorkloadGenerator implements AutoCloseable {
 
         for(String topic: topics){
             for(int i = 0; i < workload.subscriptionsPerTopic; i++){
-                String subscriptionName = String.format("sub-%03d-%s", i, RandomGenerator.getRandomString());
+                String subscriptionName = String.format("subs-%03d-%s", i, RandomGenerator.getRandomString());
                 for (int j = 0; j < workload.consumerPerSubscription; j++) {
                     consumerAssignment.topicsSubscriptions
                         .add(new TopicSubscription(topic, subscriptionName));
@@ -391,7 +391,7 @@ public class WorkloadGenerator implements AutoCloseable {
         }
     }
 
-    private TestResult printAndCollectStats(long testDurations, TimeUnit unit) throws IOException {
+    private List<TestResult> printAndCollectStats(long testDurations, TimeUnit unit) throws IOException {
         long startTime = System.nanoTime();
 
         // Print report stats
@@ -524,7 +524,9 @@ public class WorkloadGenerator implements AutoCloseable {
             oldTime = now;
         }
 
-        return result;
+        List<TestResult> results = new ArrayList<TestResult>();
+        results.add(result);
+        return results;
     }
 
     private static final DecimalFormat rateFormat = new PaddingDecimalFormat("0.0", 7);

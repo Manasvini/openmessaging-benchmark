@@ -65,6 +65,9 @@ public class TestResult {
 
     public Map<Double, Double> aggregatedEndToEndLatencyQuantiles = new TreeMap<>();
 
+    public double messagesSent;
+    public double messagesReceived;
+
     public double aggregatedEndToEndLatencyAvg;
     public double aggregatedEndToEndLatency50pct;
     public double aggregatedEndToEndLatency75pct;
@@ -79,12 +82,19 @@ public class TestResult {
     public List<Double> subscriptionChangeLatency75pct = new ArrayList<>();
     public List<Double> subscriptionChangeLatency95pct = new ArrayList<>();
     public List<Double> subscriptionChangeLatency99pct = new ArrayList<>();
-     public List<Double> subscriptionChangeLatencyMax = new ArrayList<>();
- 
+    public List<Double> subscriptionChangeLatencyMax = new ArrayList<>();
+    
     public double aggregatedsubscriptionChangeLatencyAvg;
     public double aggregatedsubscriptionChangeLatency50pct;
     public double aggregatedsubscriptionChangeLatency75pct;
     public double aggregatedsubscriptionChangeLatency95pct;
     public double aggregatedsubscriptionChangeLatency99pct;
     public double aggregatedsubscriptionChangeLatencyMax;
+
+    public String sentMetadata;
+    public String receivedMetadata;
+    public List<Integer> totalRequestsCompletedList;
+
+    public Map<String, List<List<String>>> allConsumerTopics;
+    public Map<String, List<String>> allProducerTopics;
 }

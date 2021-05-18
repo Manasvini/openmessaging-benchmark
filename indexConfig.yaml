@@ -1,0 +1,7 @@
+blockSize: 0.001
+indexType: GEOHASH
+minX: 33.7757
+minY: 85.3963
+maxX: 33.8257
+maxY: 85.4463
+testDurationMinutes: 2

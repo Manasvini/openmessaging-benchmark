@@ -17,16 +17,35 @@
 # under the License.
 #
 
-name: 1 topic / 1 partition / 1Kb
+name: Pulsar
+driverClass: io.openmessaging.benchmark.driver.pulsar.PulsarBenchmarkDriver
 
-topics: 1
-partitionsPerTopic: 1
-keyDistributor: "NO_KEY"
-messageSize: 1024
-payloadFile: "payload/payload-1Kb.data"
-subscriptionsPerTopic: 1
-consumerPerSubscription: 1
-producersPerTopic: 1
-producerRate: 10
-consumerBacklogSizeGB: 0
-testDurationMinutes: 1
+# Pulsar client-specific configuration
+client:
+  serviceUrl: pulsar://10.100.1.220:6650
+  httpUrl: http://10.100.1.220:8080
+  ioThreads: 1
+  connectionsPerBroker: 1
+  clusterName: local
+  cluster: local
+  createNamespace: false
+  namespacePrefix: benchmark/ns-names
+  topicType: non_persistent
+ # persistence:
+ #   ensembleSize: 1 
+ #   writeQuorum: 1
+ #   ackQuorum: 1
+ #   deduplicationEnabled: false
+  tlsAllowInsecureConnection: false
+  tlsEnableHostnameVerification: false
+#  tlsTrustCertsFilePath:
+#  authentication:
+#    plugin:
+#    data:
+
+# Producer configuration
+producer:
+  batchingEnabled: true
+  batchingMaxPublishDelayMs: 10
+  blockIfQueueFull: true
+  pendingQueueSize: 10000

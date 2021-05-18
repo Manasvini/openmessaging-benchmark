@@ -19,6 +19,7 @@
 package io.openmessaging.benchmark;
 
 import io.openmessaging.benchmark.utils.distributor.KeyDistributorType;
+import io.openmessaging.benchmark.worker.IndexConfig;
 
 public class Workload {
     public String name;
@@ -42,6 +43,10 @@ public class Workload {
     public int consumerPerSubscription;
 
     public int producerRate;
+
+    public int numClients;
+    
+    public IndexConfig indexConfig;
 
     /**
      * If the consumer backlog is > 0, the generator will accumulate messages until the requested amount of storage is

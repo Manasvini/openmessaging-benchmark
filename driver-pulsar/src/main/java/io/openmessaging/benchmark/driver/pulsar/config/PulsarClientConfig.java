@@ -33,6 +33,8 @@ public class PulsarClientConfig {
 
     public String clusterName;
 
+    public Boolean createNamespace;
+    
     public TopicDomain topicType = TopicDomain.persistent;
 
     public PersistenceConfiguration persistence = new PersistenceConfiguration();

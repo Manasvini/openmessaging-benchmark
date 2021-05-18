@@ -36,7 +36,7 @@ public class PulsarBenchmarkProducer implements BenchmarkProducer {
 
     @Override
     public void close() throws Exception {
-        producer.close();
+        producer.closeAsync();
     }
 
     @Override
@@ -49,4 +49,7 @@ public class PulsarBenchmarkProducer implements BenchmarkProducer {
         return msgBuilder.sendAsync().thenApply(msgId -> null);
     }
 
+    public String getTopic() {
+        return this.producer.getTopic();
+    }
 }

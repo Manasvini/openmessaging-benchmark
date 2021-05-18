@@ -35,7 +35,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Function;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.Collections;
@@ -261,6 +260,10 @@ public class LocalWorker implements Worker, ConsumerCallback {
     }
 
     @Override
+    public void createProducers(String topic, String producerID, byte[] payloadData) {
+    }
+
+    @Override
     public void createProducers(List<String> topics) {
         Timer timer = new Timer();
 
@@ -294,6 +297,10 @@ public class LocalWorker implements Worker, ConsumerCallback {
                 log.info("error occured in setting up sub change");
             }
         }
+    }
+
+    @Override
+    public void setPublishRate(int publishRate) {
     }
 
     @Override
@@ -431,6 +438,10 @@ public class LocalWorker implements Worker, ConsumerCallback {
         return stats;
     }
 
+    @Override
+    public void messageReceived(byte[] data, long publishTimestamp, String subscriptionName) {
+    }
+    
     @Override
     public void messageReceived(byte[] data, long publishTimestamp) {
         messagesReceived.increment();

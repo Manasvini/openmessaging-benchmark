@@ -26,7 +26,8 @@ client:
   httpUrl: http://127.0.0.1:8080
   ioThreads: 1
   connectionsPerBroker: 1
-  clusterName: standalone
+  clusterName: local
+  cluster: local
   namespacePrefix: benchmark/ns
   topicType: non_persistent
  # persistence:
@@ -36,10 +37,10 @@ client:
  #   deduplicationEnabled: false
   tlsAllowInsecureConnection: false
   tlsEnableHostnameVerification: false
-  tlsTrustCertsFilePath:
-  authentication:
-    plugin:
-    data:
+#  tlsTrustCertsFilePath:
+#  authentication:
+#    plugin:
+#    data:
 
 # Producer configuration
 producer:

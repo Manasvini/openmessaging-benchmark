@@ -34,4 +34,5 @@ public interface BenchmarkProducer extends AutoCloseable {
      */
     CompletableFuture<Void> sendAsync(Optional<String> key, byte[] payload);
 
+    String getTopic();
 }

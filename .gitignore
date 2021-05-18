@@ -15,6 +15,10 @@ core/*.json
 **/terraform.tfstate.backup
 **/*.lock.info
 .DS_Store
+workloads/testWorkloads/*
+sumo/*
+parsed/*
+get-pip.py
 
 # IntelliJ artifacts
 .idea/

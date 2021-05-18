@@ -27,6 +27,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -127,43 +128,53 @@ public class PulsarBenchmarkDriver implements BenchmarkDriver {
                         .blockIfQueueFull(config.producer.blockIfQueueFull)
                         .maxPendingMessages(config.producer.pendingQueueSize);
 
-        try {
-            // Create namespace and set the configuration
-            String tenant = config.client.namespacePrefix.split("/")[0];
-            String cluster = config.client.clusterName;
-            if (!adminClient.tenants().getTenants().contains(tenant)) {
-                try {
-                    adminClient.tenants().createTenant(tenant,
-                                    new TenantInfo(Collections.emptySet(), Sets.newHashSet(cluster)));
-                } catch (ConflictException e) {
-                    // Ignore. This can happen when multiple workers are initializing at the same time
+        while (true){
+            try {
+                // Create namespace and set the configuration
+                String tenant = config.client.namespacePrefix.split("/")[0];
+                String cluster = config.client.clusterName;
+                if (!adminClient.tenants().getTenants().contains(tenant)) {
+                    try {
+                        adminClient.tenants().createTenant(tenant,
+                                        new TenantInfo(Collections.emptySet(), Sets.newHashSet(cluster)));
+                    } catch (ConflictException e) {
+                        // Ignore. This can happen when multiple workers are initializing at the same time
+                    }
                 }
+                log.info("Created Pulsar tenant {} with allowed cluster {}", tenant, cluster);
+
+                this.namespace = config.client.namespacePrefix;
+                if (config.client.createNamespace) {
+                    this.namespace = config.client.namespacePrefix + "-" + getRandomString();
+                    adminClient.namespaces().createNamespace(namespace);
+                    config.client.createNamespace = false;
+                    log.info("Created Pulsar namespace {}", namespace);
+                }
+
+                PersistenceConfiguration p = config.client.persistence;
+                adminClient.namespaces().setPersistence(namespace,
+                                new PersistencePolicies(p.ensembleSize, p.writeQuorum, p.ackQuorum, 1.0));
+
+                adminClient.namespaces().setBacklogQuota(namespace,
+                                new BacklogQuota(Long.MAX_VALUE, RetentionPolicy.producer_exception));
+                adminClient.namespaces().setDeduplicationStatus(namespace, p.deduplicationEnabled);
+                log.info("Applied persistence configuration for namespace {}/{}/{}: {}", tenant, cluster, namespace,
+                                writer.writeValueAsString(p));
+
+            } catch(ConflictException e) {
+                log.warn("ConflictException occured: {} ", e.getMessage());
+                continue;
+            } catch (PulsarAdminException e) {
+                throw new IOException(e);
             }
-            log.info("Created Pulsar tenant {} with allowed cluster {}", tenant, cluster);
-
-            this.namespace = config.client.namespacePrefix + "-" + getRandomString();
-            adminClient.namespaces().createNamespace(namespace);
-            log.info("Created Pulsar namespace {}", namespace);
-
-            PersistenceConfiguration p = config.client.persistence;
-            adminClient.namespaces().setPersistence(namespace,
-                            new PersistencePolicies(p.ensembleSize, p.writeQuorum, p.ackQuorum, 1.0));
-
-            adminClient.namespaces().setBacklogQuota(namespace,
-                            new BacklogQuota(Long.MAX_VALUE, RetentionPolicy.producer_exception));
-            adminClient.namespaces().setDeduplicationStatus(namespace, p.deduplicationEnabled);
-            log.info("Applied persistence configuration for namespace {}/{}/{}: {}", tenant, cluster, namespace,
-                            writer.writeValueAsString(p));
-
-        } catch (PulsarAdminException e) {
-            throw new IOException(e);
+            isConnected.set(true);
+            break;
         }
-        isConnected.set(true);
     }
 
     @Override
     public String getTopicNamePrefix() {
-        return config.client.topicType + "://" + namespace + "/test";
+        return config.client.topicType + "://" + namespace + "/" + config.client.clusterName + "/";
     }
 
     @Override
@@ -186,16 +197,16 @@ public class PulsarBenchmarkDriver implements BenchmarkDriver {
     public CompletableFuture<BenchmarkConsumer> createConsumer(String topic, String subscriptionName,
                     ConsumerCallback consumerCallback) {
         callback = consumerCallback;
-        ConsumerBuilder<byte[]> cb = client.newConsumer().subscriptionType(SubscriptionType.Failover).messageListener((consumer, msg) -> {
-            consumerCallback.messageReceived(msg.getData(), msg.getPublishTime());
+        ConsumerBuilder<byte[]> cb = client.newConsumer().subscriptionType(SubscriptionType.Shared).messageListener((consumer, msg) -> {
+            consumerCallback.messageReceived(msg.getData(), msg.getPublishTime(), subscriptionName);
             consumer.acknowledgeAsync(msg);
         });
         cb.topic(topic).subscriptionName(subscriptionName);
         consumerBuilders.put(subscriptionName, cb);
         
-        for(String key: consumerBuilders.keySet()){
-            log.info("Added {}", key);
-        } 
+        // for(String key: consumerBuilders.keySet()){
+        //     log.info("Added {}", key);
+        // } 
         return cb.subscribeAsync().thenApply(consumer -> new PulsarBenchmarkConsumer(consumer));
 
 
@@ -239,49 +250,54 @@ public class PulsarBenchmarkDriver implements BenchmarkDriver {
     public synchronized double getSubscriptionChangeTime(BenchmarkConsumer consumer){
         PulsarBenchmarkConsumer pConsumer = (PulsarBenchmarkConsumer)consumer;
         if(subscriptionChangeTimes.containsKey(pConsumer.getSubscription())){
-                StringBuffer sb = new StringBuffer();
-                for(Double subTime: subscriptionChangeTimes.get(pConsumer.getSubscription())){
-                    sb.append(" ");
-                    sb.append(subTime);
-                }
-                double avg = subscriptionChangeTimes.get(pConsumer.getSubscription())
-                    .stream()
-                    .mapToDouble(a->a)
-                    .average()
-                    .orElse(0.0D);
-                return avg;
+            StringBuffer sb = new StringBuffer();
+            for(Double subTime: subscriptionChangeTimes.get(pConsumer.getSubscription())){
+                sb.append(" ");
+                sb.append(subTime);
+            }
+            double avg = subscriptionChangeTimes.get(pConsumer.getSubscription())
+                .stream()
+                .mapToDouble(a->a)
+                .average()
+                .orElse(0.0D);
+            return avg;
         }
         return 0.0;
-     }
+    }
+    
     @Override
-    public CompletableFuture<Void> subscribeConsumerToTopic(BenchmarkConsumer consumer, String topic){
+    public CompletableFuture<Void> subscribeConsumerToTopic(BenchmarkConsumer consumer,
+                                                            String topic){
         
         return CompletableFuture.runAsync(()->{
             if(!isConnected.get()){
                 return;
             }
             try {
-                 StopWatch sw = new StopWatch();
-                 PulsarBenchmarkConsumer pConsumer = (PulsarBenchmarkConsumer)consumer;
+                StopWatch sw = new StopWatch();
+                PulsarBenchmarkConsumer pConsumer = (PulsarBenchmarkConsumer)consumer;
  
                 if(consumerBuilders.containsKey(pConsumer.getSubscription())){
                     sw.start();
                     pConsumer.unsubscribe();
                     String subscription = pConsumer.getSubscription();
-                    pConsumer = (PulsarBenchmarkConsumer)createConsumer(topic, subscription, callback).get();
+                    PulsarBenchmarkConsumer newConsumer = (PulsarBenchmarkConsumer)
+                        createConsumer(topic, subscription, callback).get();
                     sw.stop();
-                     if(!subscriptionChangeTimes.containsKey(pConsumer.getSubscription())){
-                        subscriptionChangeTimes.put(pConsumer.getSubscription(), new ArrayList<Double>());
+                    if(!subscriptionChangeTimes.containsKey(newConsumer.getSubscription())){
+                        subscriptionChangeTimes.put(newConsumer.getSubscription(),
+                            new ArrayList<Double>());
                     }
-                    ArrayList<Double> consumerSubTimes = subscriptionChangeTimes.get(pConsumer.getSubscription());
+                    ArrayList<Double> consumerSubTimes = subscriptionChangeTimes.get(
+                        newConsumer.getSubscription());
                     consumerSubTimes.add((double)sw.getTime());
-                    subscriptionChangeTimes.put(pConsumer.getSubscription(), consumerSubTimes);
-                
-
+                    subscriptionChangeTimes.put(newConsumer.getSubscription(),
+                        consumerSubTimes);
                 }
             
             } catch(Exception e){
                 log.error("Could not change topic " + e.getMessage()); 
-            }});
+            }
+        });
     }
 }
